@@ -8,7 +8,7 @@ square_units = [cross(rs, cs) for rs in ('ABC','DEF','GHI') for cs in ('123','45
 unitlist = row_units + column_units + square_units
 
 # TODO: Update the unit list to add the new diagonal units
-unitlist = unitlist
+unitlist = unitlist + [[rows[i]+cols[i] for i in range(9)],[rows[i]+cols[-i-1] for i in range(9)]]
 
 
 # Must be called after all units (including diagonals) are added to the unitlist
@@ -54,7 +54,24 @@ def naked_twins(values):
     https://github.com/udacity/artificial-intelligence/blob/master/Projects/1_Sudoku/pseudocode.md
     """
     # TODO: Implement this function!
-    raise NotImplementedError
+    # Find boxes with 2 entries
+    candidates = [box for box in values.keys() if len(values[box]) == 2]
+
+    # Collect boxes that have the same elements
+    twins = [[box1,box2] for box1 in candidates for box2 in peers[box1] if set(values[box1]) == set(values[box2])]
+
+    for twin_1, twin_2 in twins:
+        peers_1 = set(peers[twin_1])
+        peers_2 = set(peers[twin_2])
+
+        intersecting_peers = peers_1.intersection(peers_2)
+
+        for peer in intersecting_peers:
+            for digit in values[twin_1]:
+                if len(values[peer]) > 1:
+                    values[peer] = values[peer].replace(digit, '')
+
+    return values
 
 
 def eliminate(values):
@@ -161,15 +178,15 @@ def search(values):
     # TODO: Copy your code from the classroom to complete this function
     values = reduce_puzzle(values)
     if values is False:
-        return False
+        return False ## Failed earlier
     if all(len(values[s]) == 1 for s in boxes): 
-        return values
+        return values ## Solved!
     # Choose one of the unfilled squares with the fewest possibilities
-    length, key = min((len(values[s]), s) for s in boxes if len(values[s]) > 1)
-    # Now use recursion to solve each one of the resulting sudokus, and if one returns a value (not False), return that answer!
-    for value in values[key]:
+    n,s = min((len(values[s]), s) for s in boxes if len(values[s]) > 1)
+    # Now use recurrence to solve each one of the resulting sudokus, and 
+    for value in values[s]:
         new_sudoku = values.copy()
-        new_sudoku[key] = value
+        new_sudoku[s] = value
         attempt = search(new_sudoku)
         if attempt:
             return attempt
