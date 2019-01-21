@@ -1,6 +1,24 @@
 
 from sample_players import DataPlayer
+import random
+import math
+from isolation.isolation import _WIDTH, _HEIGHT, _SIZE
 
+
+S, N, W, E = -_WIDTH - 2, _WIDTH + 2, 1, -1
+
+Action = {
+    'NNE': N+N+E,
+    'ENE': E+N+E,
+    'ESE': E+S+E,
+    'SSE': S+S+E,
+    'SSW': S+S+W,
+    'WSW': W+S+W,
+    'WNW': W+N+W,
+    'NNW': N+N+W
+}
+
+_ACTIONSET = set(Action)
 
 class CustomPlayer(DataPlayer):
     """ Implement your own agent to play knight's Isolation
@@ -42,5 +60,71 @@ class CustomPlayer(DataPlayer):
         # EXAMPLE: choose a random move without any search--this function MUST
         #          call self.queue.put(ACTION) at least once before time expires
         #          (the timer is automatically managed for you)
-        import random
-        self.queue.put(random.choice(state.actions()))
+        if state.ply_count < 2:
+            self.queue.put(random.choice(state.actions()))
+        else:
+            self.queue.put(self.alpha_beta_search(state))
+        #    self.queue.put(self.minimax(state, depth=3))
+
+    def opponents_moves(self, state, opp_loc):
+        if opp_loc is None:
+            return state.liberties(opp_loc)
+        moves = []
+        for a in _ACTIONSET:
+            if (Action[a] + opp_loc) >= 0 and (state.board & (1 << (Action[a] + opp_loc))):
+                moves.append(Action[a])
+        return moves
+
+    def score(self, state):
+        opp_loc = state.locs[1 - self.player_id]
+        own_loc = state.locs[self.player_id]
+        own_liberties = state.liberties(own_loc)
+        opp_liberties = state.liberties(opp_loc)
+        return float(len(own_liberties) - 3 * len(opp_liberties))
+        #own_loc = state.locs[self.player_id]
+        #opp_loc = state.locs[1 - self.player_id]
+        #own_liberties = state.liberties(own_loc)
+        #opp_liberties = state.liberties(opp_loc)
+        #return len(own_liberties) - len(opp_liberties)
+
+    def alpha_beta_search(self, gameState, depth=3):
+        
+        def min_value(gameState, alpha, beta, depth):
+            if gameState.terminal_test():
+                return gameState.utility(self.player_id)
+            
+            if depth <= 0: return self.score(gameState)
+
+            v = float("inf")
+            for a in gameState.actions():
+                v = min(v, max_value(gameState.result(a), alpha, beta, depth - 1))
+                if v <= alpha:
+                    return v
+                beta = min(beta, v)
+            return v
+
+        def max_value(gameState, alpha, beta, depth):
+            if gameState.terminal_test():
+                return gameState.utility(self.player_id)
+            
+            if depth <= 0: return self.score(gameState)
+
+            v = float("-inf")
+            for a in gameState.actions():
+                v = max(v, min_value(gameState.result(a), alpha, beta, depth - 1))
+                if v >= beta:
+                    return v
+                alpha = max(alpha, v)
+            return v
+
+        alpha = float("-inf")
+        beta = float("inf")
+        best_score = float("-inf")
+        best_move = None
+        for a in gameState.actions():
+            v = min_value(gameState.result(a), alpha, beta, depth - 1)
+            alpha = max(alpha, v)
+            if v >= best_score:
+                best_score = v
+                best_move = a
+        return best_move
